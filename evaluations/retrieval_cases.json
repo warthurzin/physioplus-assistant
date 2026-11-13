@@ -1,0 +1,575 @@
+{
+  "cases": [
+    {
+      "id": "r01",
+      "question": "Como funciona a confirmação de um agendamento?",
+      "in_domain": true,
+      "expected_documents": [
+        "agendamentos-confirmacao"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r02",
+      "question": "Como reabrir um atendimento confirmado por engano?",
+      "in_domain": true,
+      "expected_documents": [
+        "agendamentos-confirmacao"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r03",
+      "question": "Quais campos são obrigatórios para cadastrar um paciente?",
+      "in_domain": true,
+      "expected_documents": [
+        "pacientes-cadastro"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r04",
+      "question": "Posso cadastrar dois pacientes com o mesmo CPF?",
+      "in_domain": true,
+      "expected_documents": [
+        "pacientes-cadastro"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r05",
+      "question": "Como desativar um paciente sem apagar o histórico?",
+      "in_domain": true,
+      "expected_documents": [
+        "pacientes-consulta-edicao"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r06",
+      "question": "Qual o formato da data para consultar a agenda do dia?",
+      "in_domain": true,
+      "expected_documents": [
+        "agenda"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r07",
+      "question": "O que acontece se eu marcar dois atendimentos no mesmo horário?",
+      "in_domain": true,
+      "expected_documents": [
+        "agendamentos"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r08",
+      "question": "Posso cancelar um agendamento que já foi concluído?",
+      "in_domain": true,
+      "expected_documents": [
+        "agendamentos"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r09",
+      "question": "Qual a diferença entre agendamento e sessão?",
+      "in_domain": true,
+      "expected_documents": [
+        "visao-geral"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r10",
+      "question": "O que é uma sessão avulsa?",
+      "in_domain": true,
+      "expected_documents": [
+        "sessoes-avulsas"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r11",
+      "question": "Se eu marcar o pagamento duas vezes, o que acontece?",
+      "in_domain": true,
+      "expected_documents": [
+        "pagamentos-sessoes"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r12",
+      "question": "Como consultar o resumo financeiro de um mês?",
+      "in_domain": true,
+      "expected_documents": [
+        "financeiro"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r13",
+      "question": "Agendamentos programados entram nos valores pendentes?",
+      "in_domain": true,
+      "expected_documents": [
+        "financeiro",
+        "agendamentos"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r14",
+      "question": "É possível desfazer a exclusão de uma anotação clínica?",
+      "in_domain": true,
+      "expected_documents": [
+        "anotacoes-clinicas"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r15",
+      "question": "Como o sistema trata horários padrão que se sobrepõem?",
+      "in_domain": true,
+      "expected_documents": [
+        "horarios-padrao"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r16",
+      "question": "Esqueci minha senha, como recuperar o acesso?",
+      "in_domain": true,
+      "expected_documents": [
+        "autenticacao-conta"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r17",
+      "question": "Por que o login pede captcha?",
+      "in_domain": true,
+      "expected_documents": [
+        "autenticacao-conta"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r18",
+      "question": "Quais dados do meu perfil profissional posso alterar?",
+      "in_domain": true,
+      "expected_documents": [
+        "perfil-profissional"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r19",
+      "question": "O que significa o erro de conflito?",
+      "in_domain": true,
+      "expected_documents": [
+        "erros-comuns"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "r20",
+      "question": "O assistente pode indicar o tratamento de um paciente?",
+      "in_domain": true,
+      "expected_documents": [
+        "assistente-physio"
+      ],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "o01",
+      "question": "Qual é a capital da França?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "dev",
+      "expected_intent": "FORA_ESCOPO"
+    },
+    {
+      "id": "o02",
+      "question": "O sistema emite nota fiscal automaticamente?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "o03",
+      "question": "Como faço um bolo de chocolate?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "dev",
+      "expected_intent": "FORA_ESCOPO"
+    },
+    {
+      "id": "o04",
+      "question": "Quem ganhou a última Copa do Mundo?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "dev",
+      "expected_intent": "FORA_ESCOPO"
+    },
+    {
+      "id": "o05",
+      "question": "Qual a dose de ibuprofeno para dor lombar?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "dev",
+      "expected_intent": "FORA_ESCOPO"
+    },
+    {
+      "id": "o06",
+      "question": "Como integrar o PhysioPlus com o WhatsApp?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "dev",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "h01",
+      "question": "Confirmei o paciente errado, como desfaço isso?",
+      "in_domain": true,
+      "expected_documents": [
+        "agendamentos-confirmacao"
+      ],
+      "split": "holdout",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "h02",
+      "question": "Preciso informar o CPF para cadastrar um paciente novo?",
+      "in_domain": true,
+      "expected_documents": [
+        "pacientes-cadastro"
+      ],
+      "split": "holdout",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "h03",
+      "question": "Onde vejo quanto ainda falta receber neste mês?",
+      "in_domain": true,
+      "expected_documents": [
+        "financeiro"
+      ],
+      "split": "holdout",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "h04",
+      "question": "Cliquei duas vezes em pago, e agora?",
+      "in_domain": true,
+      "expected_documents": [
+        "pagamentos-sessoes"
+      ],
+      "split": "holdout",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "h05",
+      "question": "Atendi alguém sem ter marcado antes, como registro?",
+      "in_domain": true,
+      "expected_documents": [
+        "sessoes-avulsas"
+      ],
+      "split": "holdout",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "h06",
+      "question": "Desativei um paciente sem querer, perco o histórico?",
+      "in_domain": true,
+      "expected_documents": [
+        "pacientes-consulta-edicao"
+      ],
+      "split": "holdout",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "h07",
+      "question": "Como vejo os atendimentos da próxima semana?",
+      "in_domain": true,
+      "expected_documents": [
+        "agenda"
+      ],
+      "split": "holdout",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "h08",
+      "question": "Errei a senha duas vezes e agora pede um código de verificação",
+      "in_domain": true,
+      "expected_documents": [
+        "autenticacao-conta"
+      ],
+      "split": "holdout",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "h09",
+      "question": "Quanto custa o plano premium do PhysioPlus?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "holdout",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "h10",
+      "question": "Quais exercícios fortalecem o joelho?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "holdout",
+      "expected_intent": "FORA_ESCOPO"
+    },
+    {
+      "id": "k01",
+      "question": "Como faço para trocar minha senha esquecida?",
+      "in_domain": true,
+      "expected_documents": [
+        "autenticacao-conta"
+      ],
+      "split": "holdout2",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "k02",
+      "question": "Quero tirar meu telefone do perfil",
+      "in_domain": true,
+      "expected_documents": [
+        "perfil-profissional"
+      ],
+      "split": "holdout2",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "k03",
+      "question": "Marquei duas pessoas no mesmo horário e deu erro, por quê?",
+      "in_domain": true,
+      "expected_documents": [
+        "agendamentos",
+        "erros-comuns"
+      ],
+      "split": "holdout2",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "k04",
+      "question": "Posso cadastrar minha disponibilidade semanal de manhã?",
+      "in_domain": true,
+      "expected_documents": [
+        "horarios-padrao"
+      ],
+      "split": "holdout2",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "k05",
+      "question": "O paciente faltou e quero cancelar a consulta marcada",
+      "in_domain": true,
+      "expected_documents": [
+        "agendamentos"
+      ],
+      "split": "holdout2",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "k06",
+      "question": "Quanto entrou de dinheiro em março?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "holdout2",
+      "expected_intent": "DADOS_OU_ACAO"
+    },
+    {
+      "id": "k07",
+      "question": "Como escrevo uma observação sobre a evolução do paciente?",
+      "in_domain": true,
+      "expected_documents": [
+        "anotacoes-clinicas"
+      ],
+      "split": "holdout2",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "k08",
+      "question": "Dá para excluir minha conta e meus dados?",
+      "in_domain": true,
+      "expected_documents": [
+        "autenticacao-conta"
+      ],
+      "split": "holdout2",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "k09",
+      "question": "Quero reativar um paciente que parou o tratamento e voltou",
+      "in_domain": true,
+      "expected_documents": [
+        "pacientes-consulta-edicao"
+      ],
+      "split": "holdout2",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "k10",
+      "question": "Mudei o preço da sessão do paciente, os atendimentos antigos mudam?",
+      "in_domain": true,
+      "expected_documents": [
+        "pacientes-cadastro"
+      ],
+      "split": "holdout2",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "k11",
+      "question": "Como baixar o aplicativo na loja?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "holdout2",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "k12",
+      "question": "Qual o melhor tratamento para tendinite?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "holdout2",
+      "expected_intent": "FORA_ESCOPO"
+    },
+    {
+      "id": "m01",
+      "question": "Como faço para mudar o horário de uma consulta que já marquei?",
+      "in_domain": true,
+      "expected_documents": [
+        "agendamentos"
+      ],
+      "split": "holdout3",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "m02",
+      "question": "Preciso cadastrar um novo paciente mas não tenho o CPF dele",
+      "in_domain": true,
+      "expected_documents": [
+        "pacientes-cadastro"
+      ],
+      "split": "holdout3",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "m03",
+      "question": "O sistema me deslogou, como entro de novo sem digitar a senha?",
+      "in_domain": true,
+      "expected_documents": [
+        "autenticacao-conta"
+      ],
+      "split": "holdout3",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "m04",
+      "question": "Onde coloco o número do meu conselho profissional?",
+      "in_domain": true,
+      "expected_documents": [
+        "perfil-profissional"
+      ],
+      "split": "holdout3",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "m05",
+      "question": "Apaguei uma anotação sem querer, consigo recuperar?",
+      "in_domain": true,
+      "expected_documents": [
+        "anotacoes-clinicas"
+      ],
+      "split": "holdout3",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "m06",
+      "question": "Uma sessão vinculada a um agendamento pode ser editada?",
+      "in_domain": true,
+      "expected_documents": [
+        "agendamentos-confirmacao",
+        "sessoes-avulsas"
+      ],
+      "split": "holdout3",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "m07",
+      "question": "Se eu cancelar um horário, ele fica livre de novo?",
+      "in_domain": true,
+      "expected_documents": [
+        "agendamentos"
+      ],
+      "split": "holdout3",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "m08",
+      "question": "Quero ver quanto cada paciente me deve",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "holdout3",
+      "expected_intent": "DADOS_OU_ACAO"
+    },
+    {
+      "id": "m09",
+      "question": "Agende o João para quinta às 14h",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "holdout3",
+      "expected_intent": "DADOS_OU_ACAO"
+    },
+    {
+      "id": "m10",
+      "question": "Quais são os meus pacientes inativos?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "holdout3",
+      "expected_intent": "DADOS_OU_ACAO"
+    },
+    {
+      "id": "m11",
+      "question": "Posso usar o app pelo celular?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "holdout3",
+      "expected_intent": "DOCUMENTACAO"
+    },
+    {
+      "id": "m12",
+      "question": "Qual o valor ideal para cobrar uma sessão de fisioterapia?",
+      "in_domain": false,
+      "expected_documents": [],
+      "split": "holdout3",
+      "expected_intent": "FORA_ESCOPO"
+    }
+  ]
+}
