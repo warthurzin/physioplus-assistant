@@ -87,6 +87,12 @@ class PhysioApiClient:
     def _get(self, token: str, path: str, params: dict | None = None):
         return self._request("GET", token, path, params)
 
+    def get_current_user(self, token: str):
+        return self._get(token, "auth/me")
+
+    def close(self) -> None:
+        self._client.close()
+
     def list_patients(self, token: str, search: str | None, active: bool) -> list[dict]:
         params = {"active": "true" if active else "false"}
 

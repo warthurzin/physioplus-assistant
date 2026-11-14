@@ -1,21 +1,36 @@
-import base64
-import json
+import logging
+from uuid import UUID
+
+from app.core.exceptions import (
+    UpstreamAuthError,
+    UpstreamError,
+    UpstreamNotFoundError,
+    UpstreamUnavailableError,
+)
+from app.integrations.physio_api import PhysioApiClient
+
+logger = logging.getLogger("physioplus.auth")
 
 
-def user_id_from_token(token: str | None) -> str | None:
+def authenticated_user_id(api: PhysioApiClient, token: str) -> str:
     if not token:
-        return None
-
-    parts = token.split(".")
-
-    if len(parts) != 3:
-        return None
+        raise UpstreamAuthError("Autenticação necessária")
 
     try:
-        payload = json.loads(base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4)))
-    except ValueError:
-        return None
+        user = api.get_current_user(token)
+    except (UpstreamAuthError, UpstreamNotFoundError) as error:
+        raise UpstreamAuthError("Sessão inválida ou expirada") from error
+    except UpstreamError as error:
+        logger.warning("Falha ao consultar auth/me (%s)", type(error).__name__)
+        raise UpstreamUnavailableError("Serviço de autenticação indisponível") from error
 
-    subject = payload.get("sub") if isinstance(payload, dict) else None
+    user_id = user.get("id") if isinstance(user, dict) else None
+    try:
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise ValueError("missing identity")
+        UUID(user_id)
+    except ValueError as error:
+        logger.warning("Resposta de auth/me sem identidade UUID válida")
+        raise UpstreamAuthError("Não foi possível validar a sessão") from error
 
-    return str(subject) if subject else None
+    return user_id

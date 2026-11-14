@@ -21,6 +21,8 @@ from app.core.exceptions import (
     LLMEmptyResponseError,
     LLMRequestError,
     LLMUnavailableError,
+    UpstreamAuthError,
+    UpstreamUnavailableError,
 )
 from app.integrations.physio_api import PhysioApiClient
 from app.llm.base import LLMClient
@@ -77,19 +79,17 @@ def create_app(
         today_fn = lambda: datetime.now(ZoneInfo(settings.timezone)).date()
         tools = data_service
         actions = action_service
-        api = None
+        api = PhysioApiClient(
+            settings.physio_api_base_url,
+            settings.physio_api_timeout_seconds,
+            force_ipv4=settings.force_ipv4,
+        )
+        app.state.physio_api_client = api
 
-        if (tools is None or actions is None) and settings.data_tools_enabled:
-            api = PhysioApiClient(
-                settings.physio_api_base_url,
-                settings.physio_api_timeout_seconds,
-                force_ipv4=settings.force_ipv4,
-            )
-
-        if tools is None and api is not None:
+        if tools is None and settings.data_tools_enabled:
             tools = DataToolService(api, settings.tool_max_items, today_fn)
 
-        if actions is None and api is not None and settings.actions_enabled:
+        if actions is None and settings.data_tools_enabled and settings.actions_enabled:
             secret = settings.assistant_signing_secret
 
             if not secret:
@@ -110,7 +110,10 @@ def create_app(
         app.state.action_service = actions
         app.state.chat_service = ChatService(settings, service, llm, tools, actions) if llm else None
 
-        yield
+        try:
+            yield
+        finally:
+            api.close()
 
     app = FastAPI(
         title=settings.app_name,
@@ -138,6 +141,16 @@ def create_app(
     app.add_exception_handler(LLMUnavailableError, error_response(503))
     app.add_exception_handler(LLMRequestError, error_response(502))
     app.add_exception_handler(LLMEmptyResponseError, error_response(502))
+
+    async def auth_error_response(request: Request, error: UpstreamAuthError):
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Sessão inválida ou expirada"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    app.add_exception_handler(UpstreamAuthError, auth_error_response)
+    app.add_exception_handler(UpstreamUnavailableError, error_response(503))
 
     app.include_router(build_router(settings))
 

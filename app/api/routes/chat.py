@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.actions.service import ActionService
 from app.api.dependencies import get_access_token, get_action_service, get_chat_service
@@ -20,9 +20,9 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 @router.post("", response_model=ChatResponse)
 def chat(
     payload: ChatRequest,
+    access_token: str = Depends(get_access_token),
     service: ChatService = Depends(get_chat_service),
     settings: Settings = Depends(get_settings),
-    access_token: str | None = Depends(get_access_token),
 ) -> ChatResponse:
     result = service.answer(
         payload.message,
@@ -55,12 +55,9 @@ def chat(
 @router.post("/confirm", response_model=ConfirmResponse)
 def confirm(
     payload: ConfirmRequest,
+    access_token: str = Depends(get_access_token),
     service: ActionService = Depends(get_action_service),
-    access_token: str | None = Depends(get_access_token),
 ) -> ConfirmResponse:
-    if not access_token:
-        raise HTTPException(status_code=401, detail="Autenticação necessária")
-
     result = service.confirm(payload.proposal, access_token)
 
     return ConfirmResponse(status=result.status, message=result.message, action=result.action)

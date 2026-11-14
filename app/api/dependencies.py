@@ -1,6 +1,7 @@
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.actions.identity import authenticated_user_id
 from app.actions.service import ActionService
 from app.core.exceptions import ActionsDisabledError, LLMConfigError
 from app.services.chat_service import ChatService
@@ -25,12 +26,26 @@ def get_chat_service(request: Request) -> ChatService:
 
 
 def get_access_token(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-) -> str | None:
+) -> str:
     if credentials is None or credentials.scheme.lower() != "bearer":
-        return None
+        raise HTTPException(
+            status_code=401,
+            detail="Autenticação necessária",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    return credentials.credentials.strip() or None
+    token = credentials.credentials.strip()
+    if not token or any(char.isspace() for char in token):
+        raise HTTPException(
+            status_code=401,
+            detail="Bearer inválido",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    authenticated_user_id(request.app.state.physio_api_client, token)
+    return token
 
 
 def get_action_service(request: Request) -> ActionService:

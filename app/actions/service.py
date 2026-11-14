@@ -4,7 +4,7 @@ from datetime import date
 from typing import Callable
 
 from app.actions import patient_rules
-from app.actions.identity import user_id_from_token
+from app.actions.identity import authenticated_user_id
 from app.actions.schemas import PATIENT_ACTIONS
 from app.actions.signer import ProposalError, ProposalSigner
 from app.core.exceptions import (
@@ -101,10 +101,7 @@ class ActionService:
         )
 
     def propose(self, action: str, arguments: dict, token: str) -> ProposalOutcome:
-        user_id = user_id_from_token(token)
-
-        if not user_id:
-            return ProposalOutcome("auth", msg.AUTH_EXPIRED)
+        user_id = authenticated_user_id(self._api, token)
 
         handlers = {
             "create_appointment": self._propose_create,
@@ -318,10 +315,7 @@ class ActionService:
         return self._proposal("set_session_payment", user_id, params, summary)
 
     def confirm(self, proposal_token: str, access_token: str) -> ActionResult:
-        user_id = user_id_from_token(access_token)
-
-        if not user_id:
-            return ActionResult("auth", msg.AUTH_EXPIRED)
+        user_id = authenticated_user_id(self._api, access_token)
 
         try:
             payload = self._signer.verify(proposal_token)
