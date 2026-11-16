@@ -37,7 +37,7 @@ POST /chat/confirm  {"proposal": "<token>"}   (cabeçalho Authorization: Bearer 
 
 - O pagamento é uma alternância na API. O assistente só a aciona quando a situação atual difere da pedida.
 - A API não impede agendar em fim de semana ou em data passada. O resumo traz um aviso, e o usuário decide.
-- Sem `ASSISTANT_SIGNING_SECRET`, a chave é temporária e as propostas deixam de valer ao reiniciar o serviço. Com mais de um processo, todos precisam da mesma chave.
+- `ASSISTANT_SIGNING_SECRET` deve conter pelo menos 32 caracteres, desconsiderando espaços nas extremidades. Se estiver ausente ou inválido, as ações ficam desabilitadas, sem geração de chave temporária; o serviço pode continuar atendendo o chat de leitura. Todos os processos precisam do mesmo segredo persistente. As flags são carregadas na inicialização e exigem reiniciar os processos para aplicar mudanças.
 - Ações em lote ("cancele todos") não são suportadas.
 - Reabrir atendimento, excluir definitivamente e registrar sessão avulsa não fazem parte desta etapa.
 - Cadastrar paciente é uma conversa: o assistente lista o que falta (nome, CPF, telefone e valor da sessão), e o planejador junta os dados de todo o histórico enviado pelo cliente.

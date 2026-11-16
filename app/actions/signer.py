@@ -5,6 +5,8 @@ import time
 
 from cryptography.fernet import Fernet, InvalidToken
 
+from app.core.exceptions import ActionsDisabledError
+
 
 class ProposalError(Exception):
     def __init__(self, reason: str) -> None:
@@ -14,6 +16,9 @@ class ProposalError(Exception):
 
 class ProposalSigner:
     def __init__(self, secret: str, ttl_seconds: int, clock=time.time) -> None:
+        if not isinstance(secret, str) or len(secret.strip()) < 32:
+            raise ActionsDisabledError("ASSISTANT_SIGNING_SECRET deve conter pelo menos 32 caracteres.")
+
         key = base64.urlsafe_b64encode(hashlib.sha256(secret.encode("utf-8")).digest())
         self._fernet = Fernet(key)
         self._ttl = ttl_seconds

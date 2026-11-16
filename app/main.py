@@ -1,5 +1,4 @@
 import logging
-import secrets
 from contextlib import asynccontextmanager
 
 from datetime import datetime
@@ -78,7 +77,7 @@ def create_app(
         app.state.retrieval_service = service
         today_fn = lambda: datetime.now(ZoneInfo(settings.timezone)).date()
         tools = data_service
-        actions = action_service
+        actions = None
         api = PhysioApiClient(
             settings.physio_api_base_url,
             settings.physio_api_timeout_seconds,
@@ -89,23 +88,19 @@ def create_app(
         if tools is None and settings.data_tools_enabled:
             tools = DataToolService(api, settings.tool_max_items, today_fn)
 
-        if actions is None and settings.data_tools_enabled and settings.actions_enabled:
-            secret = settings.assistant_signing_secret
-
-            if not secret:
-                secret = secrets.token_urlsafe(32)
-                logger.warning(
-                    "ASSISTANT_SIGNING_SECRET não definido: usando chave temporária. "
-                    "As propostas deixam de valer ao reiniciar."
+        if settings.data_tools_enabled and settings.actions_enabled:
+            try:
+                signer = ProposalSigner(settings.assistant_signing_secret, settings.proposal_ttl_seconds)
+            except ActionsDisabledError as error:
+                logger.warning("Ações desabilitadas: %s", error)
+            else:
+                actions = action_service or ActionService(
+                    api,
+                    signer,
+                    today_fn,
+                    settings.default_appointment_minutes,
+                    settings.patient_actions_enabled,
                 )
-
-            actions = ActionService(
-                api,
-                ProposalSigner(secret, settings.proposal_ttl_seconds),
-                today_fn,
-                settings.default_appointment_minutes,
-                settings.patient_actions_enabled,
-            )
 
         app.state.action_service = actions
         app.state.chat_service = ChatService(settings, service, llm, tools, actions) if llm else None

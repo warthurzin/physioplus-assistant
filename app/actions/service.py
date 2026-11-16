@@ -339,6 +339,9 @@ class ActionService:
         if payload.get("uid") != user_id or payload.get("v") != 1 or action not in executors or not isinstance(params, dict):
             return ActionResult("invalid", msg.PROPOSAL_INVALID)
 
+        if action in PATIENT_ACTIONS and not self._patient_actions:
+            return ActionResult("rejected", msg.ACTIONS_UNAVAILABLE_MESSAGE, action)
+
         try:
             result = executors[action](params, access_token)
         except UpstreamAuthError:
