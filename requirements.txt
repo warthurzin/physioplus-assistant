@@ -1,3 +1,6 @@
+--find-links https://download.pytorch.org/whl/cpu/torch/
+torch==2.15.0+cpu
+
 fastapi>=0.110
 uvicorn[standard]>=0.29
 pydantic>=2.6

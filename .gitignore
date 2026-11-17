@@ -3,6 +3,8 @@
 __pycache__/
 .pytest_cache/
 index/
+model-cache/
+.vercel/
 evaluations/results/
 evaluations/cache/
 *.pyc
