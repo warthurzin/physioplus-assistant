@@ -53,7 +53,7 @@ class Proposal(BaseModel):
 
 
 class ConfirmRequest(BaseModel):
-    proposal: Annotated[str, StringConstraints(strip_whitespace=True, min_length=10, max_length=4000)]
+    proposal: Annotated[str, StringConstraints(strip_whitespace=True, min_length=10, max_length=40000)]
 
 
 class ConfirmResponse(BaseModel):

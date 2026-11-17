@@ -1,5 +1,7 @@
 # Ações com confirmação
 
+> O fluxo de execução abaixo registra o desenho inicial. O contrato integrado e as garantias atuais estão em [EXECUCAO_IDEMPOTENTE.md](EXECUCAO_IDEMPOTENTE.md): comando Ed25519, comprovante idempotente no Node e recuperação por `/chat/result`.
+
 O assistente consegue alterar dados do profissional em oito operações: criar agendamento, cancelar agendamento, confirmar atendimento, marcar o pagamento de uma sessão, cadastrar paciente, editar dados de paciente, desativar paciente e reativar paciente. Nenhuma alteração é feita sem confirmação explícita do usuário.
 
 ## Fluxo

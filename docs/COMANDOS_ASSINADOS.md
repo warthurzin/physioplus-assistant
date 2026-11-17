@@ -1,11 +1,12 @@
-# Assinador isolado de comandos Ed25519 — contrato v1
+# Comandos Ed25519 — contrato v1
 
 `app/actions/command_signer.py` implementa `AssistantCommandSigner`, correspondente
 ao contrato de `physioPlus-backend/docs/ASSISTANT_SIGNED_COMMANDS.md` e ao verificador
 `src/utils/assistantCommandVerifier.js` do Node.
 
-Este módulo não é importado pelas rotas ou pelo serviço de ações. Não altera as
-propostas Fernet, suas flags ou `ASSISTANT_SIGNING_SECRET`.
+O módulo é utilizado pelo `ActionService` na preparação de propostas Fernet v2.
+O contrato dos bytes assinados permanece o mesmo; a integração operacional está em
+[EXECUCAO_IDEMPOTENTE.md](EXECUCAO_IDEMPOTENTE.md).
 
 ## Interface e chave privada
 
@@ -23,7 +24,7 @@ envelope = signer.sign(
 `private_key` deve ser um objeto `Ed25519PrivateKey` da biblioteca `cryptography`,
 fornecido pelo chamador. PEM, bytes, strings, chaves públicas ou de outros algoritmos
 são rejeitados. O módulo não gera chaves nem carrega arquivos, variáveis de ambiente,
-credenciais ou configurações de produção. Nenhuma variável de ambiente foi criada.
+credenciais ou configurações de produção. A integração lê `ASSISTANT_COMMAND_KEY_ID` e `ASSISTANT_COMMAND_PRIVATE_KEY` na configuração Python.
 O segredo Fernet/JWT não é utilizado como chave Ed25519.
 
 `clock`, opcional no construtor, permite injetar um relógio de teste que retorna
@@ -126,13 +127,14 @@ O assinador público continua impedindo a produção desses formatos.
 ## Limitações preservadas
 
 O Node continua sendo a autoridade sobre identidade autenticada e validade ao
-receber o comando: aceita emissão até 30 segundos no futuro e não tolera expiração.
+receber o comando: a execução nova não aceita expiração; a consulta pode ler um comando
+expirado somente para recuperar comprovante terminal anterior.
 O assinador não conhece o relógio remoto nem autentica o identificador recebido.
 
-Não há execução, autorização de negócio, consumo único, idempotência ou persistência.
-Chamar `sign()` de novo gera outro `execution_id`: esta API isolada ainda não é
-uma política de preparação ou repetição de operações. A futura integração deverá
-definir quando emitir e conservar o envelope associado à proposta.
+O assinador isolado não executa nem autoriza negócio. `ActionService` chama `sign()`
+uma vez por proposta e conserva o envelope Fernet v2; o coordenador Node implementa
+a execução idempotente com comprovante durável. Chamar `sign()` novamente geraria
+outro `execution_id` e não é usado para repetir uma confirmação.
 
 Gestão, armazenamento seguro e rotação de chaves de produção ficam para entregas
 posteriores. Nenhuma assinatura válida autoriza por si só uma operação de negócio.

@@ -34,7 +34,7 @@ class ProposalSigner:
 
         return self._fernet.encrypt_at_time(body, int(self._clock())).decode("ascii")
 
-    def verify(self, token: str) -> dict:
+    def verify(self, token: str, *, allow_expired: bool = False) -> dict:
         try:
             body = self._fernet.decrypt(token.encode("ascii"))
             data = json.loads(body)
@@ -46,7 +46,7 @@ class ProposalSigner:
         if not isinstance(expires, (int, float)):
             raise ProposalError("invalid")
 
-        if expires < self._clock():
+        if not allow_expired and expires <= self._clock():
             raise ProposalError("expired")
 
         return data

@@ -90,6 +90,51 @@ class PhysioApiClient:
     def get_current_user(self, token: str):
         return self._get(token, "auth/me")
 
+    def assistant_context(self, token: str, patient_id: str) -> dict:
+        data = self._get(token, f"assistant/context/{patient_id}")
+        if (not isinstance(data, dict) or not isinstance(data.get("patient"), dict)
+                or data["patient"].get("id") != patient_id
+                or not isinstance(data.get("appointments"), list)
+                or not isinstance(data.get("sessions"), list)):
+            raise UpstreamUnavailableError("Contexto de execução inválido")
+        return data
+
+    def _execution_request(self, method: str, token: str, path: str, execution_id: str, body=None) -> dict:
+        try:
+            response = self._client.request(method, path, json=body, headers={"Authorization": f"Bearer {token}"})
+        except httpx.HTTPError as error:
+            raise UpstreamUnavailableError("Resultado da execução não determinado") from error
+        if response.status_code == 401:
+            raise UpstreamAuthError("Sessão recusada")
+        try:
+            data = response.json().get("data")
+        except (ValueError, AttributeError):
+            data = None
+        if isinstance(data, dict) and data.get("execution_id") == execution_id:
+            state, result = data.get("state"), data.get("result")
+            statuses = {"completed": {"executed", "no_change"}, "rejected": {"rejected", "conflict", "not_found", "expired", "invalid"}}
+            if state == "unknown" and result is None:
+                return data
+            if (state in statuses and isinstance(result, dict)
+                    and set(result) == {"status", "message", "action"}
+                    and result.get("status") in statuses[state]
+                    and isinstance(result.get("message"), str) and 1 <= len(result["message"]) <= 2048
+                    and isinstance(result.get("action"), str)):
+                return data
+        if method == "POST" and response.status_code in (400, 403, 422):
+            raise UpstreamValidationError("Comando recusado")
+        raise UpstreamUnavailableError("Resultado da execução não determinado")
+
+    def execute_assistant_command(self, token: str, envelope: dict) -> dict:
+        import base64
+        import json
+
+        command = json.loads(base64.urlsafe_b64decode(envelope["command"] + "=" * (-len(envelope["command"]) % 4)))
+        return self._execution_request("POST", token, "assistant/executions", command["execution_id"], envelope)
+
+    def assistant_execution_result(self, token: str, execution_id: str) -> dict:
+        return self._execution_request("GET", token, f"assistant/executions/{execution_id}", execution_id)
+
     def close(self) -> None:
         self._client.close()
 

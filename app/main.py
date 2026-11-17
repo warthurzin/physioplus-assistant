@@ -12,6 +12,9 @@ from app.api.router import build_router
 from app.core.config import get_settings
 from app.actions.service import ActionService
 from app.actions.signer import ProposalSigner
+from app.actions.command_signer import AssistantCommandSigner
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+from cryptography.exceptions import UnsupportedAlgorithm
 from app.core.exceptions import (
     ActionsDisabledError,
     AssistantError,
@@ -88,11 +91,15 @@ def create_app(
         if tools is None and settings.data_tools_enabled:
             tools = DataToolService(api, settings.tool_max_items, today_fn)
 
-        if settings.data_tools_enabled and settings.actions_enabled:
+        if settings.data_tools_enabled and settings.actions_enabled and settings.assistant_executions_enabled:
             try:
                 signer = ProposalSigner(settings.assistant_signing_secret, settings.proposal_ttl_seconds)
-            except ActionsDisabledError as error:
-                logger.warning("Ações desabilitadas: %s", error)
+                command_signer = AssistantCommandSigner(
+                    settings.assistant_command_key_id,
+                    load_pem_private_key(settings.assistant_command_private_key.get_secret_value().encode(), password=None),
+                )
+            except (ActionsDisabledError, ValueError, TypeError, UnsupportedAlgorithm):
+                logger.warning("Ações desabilitadas: configuração de assinatura inválida.")
             else:
                 actions = action_service or ActionService(
                     api,
@@ -100,6 +107,8 @@ def create_app(
                     today_fn,
                     settings.default_appointment_minutes,
                     settings.patient_actions_enabled,
+                    command_signer=command_signer,
+                    enabled=lambda: settings.data_tools_enabled and settings.actions_enabled and settings.assistant_executions_enabled,
                 )
 
         app.state.action_service = actions

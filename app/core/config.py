@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     actions_enabled: bool = True
     patient_actions_enabled: bool = True
     assistant_signing_secret: str = ""
+    assistant_executions_enabled: bool = False
+    assistant_command_key_id: str = ""
+    assistant_command_private_key: SecretStr = SecretStr("")
     proposal_ttl_seconds: int = Field(default=300, ge=60, le=1800)
     default_appointment_minutes: int = Field(default=60, ge=15, le=240)
     tool_max_items: int = Field(default=15, ge=1, le=100)

@@ -61,3 +61,13 @@ def confirm(
     result = service.confirm(payload.proposal, access_token)
 
     return ConfirmResponse(status=result.status, message=result.message, action=result.action)
+
+
+@router.post("/result", response_model=ConfirmResponse)
+def recover_result(
+    payload: ConfirmRequest,
+    access_token: str = Depends(get_access_token),
+    service: ActionService = Depends(get_action_service),
+) -> ConfirmResponse:
+    result = service.recover(payload.proposal, access_token)
+    return ConfirmResponse(status=result.status, message=result.message, action=result.action)

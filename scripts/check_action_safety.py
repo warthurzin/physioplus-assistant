@@ -7,7 +7,11 @@ from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
 from app.actions.schemas import PATIENT_ACTIONS
-from app.actions.service import ActionResult, ActionService
+from app.actions.service import ActionService
+from app.actions.command_signer import AssistantCommandSigner
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
+from pydantic import SecretStr
 from app.actions.signer import ProposalSigner
 from app.core.config import Settings
 from app.core.exceptions import ActionsDisabledError
@@ -19,8 +23,8 @@ with patch("app.core.config.get_settings", new=lambda: Settings.model_construct(
     from app import main
 
 
-USER_ID = "00000000-0000-0000-0000-000000000001"
-OTHER_USER_ID = "00000000-0000-0000-0000-000000000002"
+USER_ID = "00000000-0000-4000-8000-000000000001"
+OTHER_USER_ID = "00000000-0000-4000-8000-000000000002"
 TEST_SECRET = "isolated-test-signing-key-not-for-production"
 EXECUTORS = {
     "create_patient": "_exec_create_patient",
@@ -46,19 +50,23 @@ class ActionSafetyChecks(unittest.TestCase):
         self.api.get_current_user.return_value = {"id": USER_ID}
         self.now = time.time()
         self.signer = ProposalSigner(TEST_SECRET, 60, clock=lambda: self.now)
-        self.service = ActionService(self.api, self.signer)
-        self.executors = {}
-        for action, method in EXECUTORS.items():
-            executor = Mock(return_value=ActionResult("executed", "Simulated result"))
-            setattr(self.service, method, executor)
-            self.executors[action] = executor
+        self.key = Ed25519PrivateKey.generate()
+        self.command_signer = AssistantCommandSigner("test", self.key, clock=lambda: int(self.now))
+        self.service = ActionService(self.api, self.signer, command_signer=self.command_signer)
+        def execute(_token, envelope):
+            import base64, json
+            command = json.loads(base64.urlsafe_b64decode(envelope["command"] + "=" * (-len(envelope["command"]) % 4)))
+            status = "expired" if command["expires_at"] <= self.now else "executed"
+            return {"state": "rejected" if status == "expired" else "completed", "result": {
+                "status": status, "message": "Synthetic result", "action": command["action"],
+            }}
+        self.api.execute_assistant_command.side_effect = execute
 
     def proposal(self, action="create_patient", user_id=USER_ID):
         return self.service._proposal(action, user_id, {}, "Simulated proposal").proposal["token"]
 
     def assert_no_execution(self):
-        for executor in self.executors.values():
-            executor.assert_not_called()
+        self.api.execute_assistant_command.assert_not_called()
         self.assertTrue(all(call[0] in {"get_current_user", "close"} for call in self.api.method_calls))
 
     @contextmanager
@@ -66,6 +74,9 @@ class ActionSafetyChecks(unittest.TestCase):
         settings = Settings.model_construct(
             **{
                 "assistant_signing_secret": TEST_SECRET,
+                "assistant_executions_enabled": True,
+                "assistant_command_key_id": "test",
+                "assistant_command_private_key": SecretStr(self.key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode()),
                 "enable_debug_endpoints": False,
                 **overrides,
             }
@@ -121,7 +132,7 @@ class ActionSafetyChecks(unittest.TestCase):
         for action in EXECUTORS.keys() - PATIENT_ACTIONS:
             with self.subTest(action=action):
                 self.assertEqual(self.service.confirm(self.proposal(action), "simulated-access").status, "executed")
-                self.executors[action].assert_called_once()
+                self.assertEqual(self.api.execute_assistant_command.call_args.args[0], "simulated-access")
 
     def test_invalid_expired_and_other_user_proposals_are_rejected(self):
         expired = self.proposal()
@@ -134,7 +145,7 @@ class ActionSafetyChecks(unittest.TestCase):
         for token, expected in cases:
             with self.subTest(expected=expected):
                 self.assertEqual(self.service.confirm(token, "simulated-access").status, expected)
-        self.assert_no_execution()
+        self.assertEqual(self.api.execute_assistant_command.call_count, 1)
 
     def test_missing_blank_short_and_non_string_secrets_are_rejected(self):
         for secret in (None, "", " " * 64, "short", "x" * 31, "  " + "x" * 31 + "  "):
@@ -147,7 +158,7 @@ class ActionSafetyChecks(unittest.TestCase):
         self.assertEqual(other_signer.verify(self.proposal())["uid"], USER_ID)
 
     def test_global_flags_block_all_actions_even_with_injected_service(self):
-        for flag in ("data_tools_enabled", "actions_enabled"):
+        for flag in ("data_tools_enabled", "actions_enabled", "assistant_executions_enabled"):
             with self.subTest(flag=flag), self.client(injected=self.service, **{flag: False}) as (client, app):
                 self.assertIsNone(app.state.action_service)
                 for action in EXECUTORS:

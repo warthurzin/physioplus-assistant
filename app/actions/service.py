@@ -1,3 +1,5 @@
+import base64
+import json
 import logging
 from dataclasses import dataclass
 from datetime import date
@@ -5,6 +7,7 @@ from typing import Callable
 
 from app.actions import patient_rules
 from app.actions.identity import authenticated_user_id
+from app.actions.command_signer import AssistantCommandSigner, AssistantCommandSigningError
 from app.actions.schemas import PATIENT_ACTIONS
 from app.actions.signer import ProposalError, ProposalSigner
 from app.core.exceptions import (
@@ -58,12 +61,17 @@ class ActionService:
         today_fn: Callable[[], date] = date.today,
         default_minutes: int = 60,
         patient_actions_enabled: bool = True,
+        *,
+        command_signer: AssistantCommandSigner | None = None,
+        enabled: Callable[[], bool] = lambda: True,
     ) -> None:
         self._api = api
         self._signer = signer
         self._today = today_fn
         self._default_minutes = default_minutes
         self._patient_actions = patient_actions_enabled
+        self._command_signer = command_signer
+        self._enabled = enabled
 
     def _day(self, arguments: dict) -> date:
         return resolve_date(
@@ -78,30 +86,47 @@ class ActionService:
         lookup = find_patient(self._api, token, arguments["patient_name"])
 
         if lookup.kind == FOUND:
-            return lookup.patient, None
+            context = self._api.assistant_context(token, str(lookup.patient["id"]))
+            patient = dict(context["patient"])
+            patient["_appointments"] = context["appointments"]
+            patient["_sessions"] = context["sessions"]
+            return patient, None
 
         if lookup.kind == AMBIGUOUS:
             return None, ProposalOutcome("ambiguous", msg.PATIENT_AMBIGUOUS.format(names=", ".join(lookup.names)))
 
         return None, ProposalOutcome("not_found", msg.PATIENT_NOT_FOUND)
 
-    def _proposal(self, action: str, user_id: str, params: dict, summary: str) -> ProposalOutcome:
-        token = self._signer.sign({"v": 1, "act": action, "uid": user_id, "p": params})
-        text = f"{summary}\n{msg.CONFIRM_SUFFIX.format(minutes=self._signer.ttl // 60)}"
-
-        return ProposalOutcome(
-            "proposed",
-            text,
-            {
-                "token": token,
-                "action": action,
-                "summary": summary,
-                "expires_in_seconds": self._signer.ttl,
-            },
+    def _proposal(self, action: str, user_id: str, params: dict, summary: str, preconditions: dict | None = None) -> ProposalOutcome:
+        if self._command_signer is None or not self._enabled():
+            return ProposalOutcome("unsupported", msg.ACTIONS_UNAVAILABLE_MESSAGE)
+        ttl = min(self._signer.ttl, 300)
+        envelope = self._command_signer.sign(
+            professional_id=user_id, action=action, parameters=params,
+            preconditions=preconditions or {}, ttl_seconds=ttl,
         )
+        command = json.loads(base64.urlsafe_b64decode(envelope["command"] + "=" * (-len(envelope["command"]) % 4)))
+        token = self._signer.sign({
+            "v": 2, "act": action, "uid": user_id, "command": envelope,
+            "execution_id": command["execution_id"],
+        })
+        return ProposalOutcome("proposed", f"{summary}\n{msg.CONFIRM_SUFFIX.format(minutes=ttl // 60)}", {
+            "token": token, "action": action, "summary": summary, "expires_in_seconds": ttl,
+        })
+
+    @staticmethod
+    def _preconditions(patient: dict, kind: str | None = None, record: dict | None = None) -> dict:
+        result = {"patient_revision": patient.get("assistant_revision")}
+        if kind:
+            result[f"{kind}_revision"] = record.get("assistant_revision")
+        if any(not isinstance(value, str) or not value.isdigit() or int(value) <= 0 for value in result.values()):
+            raise UpstreamUnavailableError("Revisões de registros indisponíveis")
+        return result
 
     def propose(self, action: str, arguments: dict, token: str) -> ProposalOutcome:
         user_id = authenticated_user_id(self._api, token)
+        if self._command_signer is None or not self._enabled():
+            return ProposalOutcome("unsupported", msg.ACTIONS_UNAVAILABLE_MESSAGE)
 
         handlers = {
             "create_appointment": self._propose_create,
@@ -125,7 +150,7 @@ class ActionService:
             outcome = ProposalOutcome("not_found", msg.PATIENT_NOT_FOUND)
         except (UpstreamValidationError, UpstreamConflictError):
             outcome = ProposalOutcome("rejected", msg.REJECTED_GENERIC)
-        except UpstreamUnavailableError:
+        except (UpstreamUnavailableError, AssistantCommandSigningError):
             outcome = ProposalOutcome("unavailable", msg.WRITE_UNCERTAIN)
 
         logger.info("Proposta: action=%s status=%s", action, outcome.status)
@@ -185,13 +210,13 @@ class ActionService:
             "is_home_visit": bool(home),
         }
 
-        return self._proposal("create_appointment", user_id, params, summary)
+        return self._proposal("create_appointment", user_id, params, summary, self._preconditions(patient))
 
     def _pick_appointment(self, arguments: dict, token: str, patient: dict, day: date):
         items = [
             item
-            for item in self._api.list_appointments(token, day.isoformat(), str(patient.get("id")))
-            if item.get("status") == "scheduled"
+            for item in patient["_appointments"]
+            if item.get("status") == "scheduled" and str(item.get("date"))[:10] == day.isoformat()
         ]
         wanted = arguments.get("start_time")
 
@@ -232,7 +257,7 @@ class ActionService:
             "date": day.isoformat(),
         }
 
-        return self._proposal("cancel_appointment", user_id, params, summary)
+        return self._proposal("cancel_appointment", user_id, params, summary, self._preconditions(patient, "appointment", appointment))
 
     def _propose_confirm(self, arguments: dict, token: str, user_id: str) -> ProposalOutcome:
         patient, error = self._patient(arguments, token)
@@ -263,7 +288,7 @@ class ActionService:
             "date": day.isoformat(),
         }
 
-        return self._proposal("confirm_appointment", user_id, params, summary)
+        return self._proposal("confirm_appointment", user_id, params, summary, self._preconditions(patient, "appointment", appointment))
 
     def _propose_payment(self, arguments: dict, token: str, user_id: str) -> ProposalOutcome:
         patient, error = self._patient(arguments, token)
@@ -272,7 +297,7 @@ class ActionService:
             return error
 
         name = patient.get("full_name")
-        sessions = self._api.list_sessions(token, str(patient.get("id")))
+        sessions = patient["_sessions"]
         target = "paid" if arguments["paid"] else "pending"
         label = PAYMENT_LABELS[target]
         opposite = PAYMENT_LABELS["pending" if target == "paid" else "paid"]
@@ -312,116 +337,57 @@ class ActionService:
             "target": target,
         }
 
-        return self._proposal("set_session_payment", user_id, params, summary)
+        return self._proposal("set_session_payment", user_id, params, summary, self._preconditions(patient, "session", session))
+
+    def _confirmed_payload(self, proposal_token: str, access_token: str):
+        user_id = authenticated_user_id(self._api, access_token)
+        try:
+            payload = self._signer.verify(proposal_token, allow_expired=True)
+        except ProposalError as error:
+            return None, ActionResult(error.reason, msg.PROPOSAL_INVALID)
+        if (payload.get("uid") != user_id or payload.get("v") != 2
+                or not isinstance(payload.get("command"), dict)
+                or not isinstance(payload.get("execution_id"), str)):
+            return None, ActionResult("invalid", msg.PROPOSAL_INVALID)
+        action = payload.get("act")
+        if not self._enabled() or (action in PATIENT_ACTIONS and not self._patient_actions):
+            return None, ActionResult("rejected", msg.ACTIONS_UNAVAILABLE_MESSAGE, action)
+        return payload, None
+
+    @staticmethod
+    def _execution_result(data: dict, action: str) -> ActionResult:
+        result = data.get("result")
+        if data.get("state") in {"completed", "rejected"} and isinstance(result, dict) and result.get("action") == action:
+            return ActionResult(result["status"], result["message"], action)
+        return ActionResult("unavailable", msg.WRITE_UNCERTAIN, action)
+
+    def recover(self, proposal_token: str, access_token: str) -> ActionResult:
+        payload, error = self._confirmed_payload(proposal_token, access_token)
+        if error:
+            return error
+        try:
+            data = self._api.assistant_execution_result(access_token, payload["execution_id"])
+            return self._execution_result(data, payload["act"])
+        except UpstreamAuthError:
+            return ActionResult("auth", msg.AUTH_EXPIRED, payload["act"])
+        except UpstreamUnavailableError:
+            return ActionResult("unavailable", msg.WRITE_UNCERTAIN, payload["act"])
 
     def confirm(self, proposal_token: str, access_token: str) -> ActionResult:
-        user_id = authenticated_user_id(self._api, access_token)
-
+        payload, error = self._confirmed_payload(proposal_token, access_token)
+        if error:
+            return error
+        action = payload["act"]
         try:
-            payload = self._signer.verify(proposal_token)
-        except ProposalError as error:
-            text = msg.PROPOSAL_EXPIRED if error.reason == "expired" else msg.PROPOSAL_INVALID
-            return ActionResult(error.reason, text)
-
-        action = payload.get("act")
-        params = payload.get("p")
-        executors = {
-            "create_appointment": self._exec_create,
-            "cancel_appointment": self._exec_cancel,
-            "confirm_appointment": self._exec_confirm,
-            "set_session_payment": self._exec_payment,
-            "create_patient": self._exec_create_patient,
-            "update_patient": self._exec_update_patient,
-            "deactivate_patient": self._exec_deactivate_patient,
-            "reactivate_patient": self._exec_reactivate_patient,
-        }
-
-        if payload.get("uid") != user_id or payload.get("v") != 1 or action not in executors or not isinstance(params, dict):
-            return ActionResult("invalid", msg.PROPOSAL_INVALID)
-
-        if action in PATIENT_ACTIONS and not self._patient_actions:
-            return ActionResult("rejected", msg.ACTIONS_UNAVAILABLE_MESSAGE, action)
-
-        try:
-            result = executors[action](params, access_token)
+            data = self._api.execute_assistant_command(access_token, payload["command"])
+            return self._execution_result(data, action)
         except UpstreamAuthError:
-            result = ActionResult("auth", msg.AUTH_EXPIRED)
-        except UpstreamConflictError:
-            text = msg.PATIENT_CPF_CONFLICT if action in PATIENT_ACTIONS else msg.SLOT_NOW_TAKEN
-            result = ActionResult("conflict", text)
-        except UpstreamNotFoundError:
-            result = ActionResult("not_found", msg.RECORD_GONE)
-        except UpstreamValidationError as error:
-            detail = str(error).strip()
-            text = msg.REJECTED.format(detail=detail) if detail else msg.REJECTED_GENERIC
-            result = ActionResult("rejected", text)
+            return ActionResult("auth", msg.AUTH_EXPIRED, action)
+        except UpstreamValidationError:
+            return ActionResult("invalid", msg.PROPOSAL_INVALID, action)
         except UpstreamUnavailableError:
-            result = ActionResult("unavailable", msg.WRITE_UNCERTAIN)
-
-        logger.info("Ação: action=%s status=%s", action, result.status)
-
-        return ActionResult(result.status, result.message, action)
-
-    def _exec_create(self, params: dict, token: str) -> ActionResult:
-        self._api.create_appointment(
-            token,
-            params["patient_id"],
-            {
-                "date": params["date"],
-                "start_time": params["start_time"],
-                "end_time": params["end_time"],
-                "is_home_visit": params["is_home_visit"],
-            },
-        )
-
-        return ActionResult(
-            "executed",
-            msg.CREATED.format(
-                name=params["patient_name"],
-                date=date_br(params["date"]),
-                start=params["start_time"],
-                end=params["end_time"],
-            ),
-        )
-
-    def _exec_cancel(self, params: dict, token: str) -> ActionResult:
-        self._api.cancel_appointment(token, params["patient_id"], params["appointment_id"])
-
-        return ActionResult("executed", msg.CANCELLED.format(name=params["patient_name"], date=date_br(params["date"])))
-
-    def _exec_confirm(self, params: dict, token: str) -> ActionResult:
-        session = self._api.confirm_appointment(token, params["patient_id"], params["appointment_id"])
-
-        return ActionResult(
-            "executed",
-            msg.CONFIRMED.format(
-                name=params["patient_name"],
-                date=date_br(params["date"]),
-                value=money(session.get("session_value")),
-            ),
-        )
-
-    def _exec_payment(self, params: dict, token: str) -> ActionResult:
-        target = params["target"]
-        label = PAYMENT_LABELS.get(target, target)
-        sessions = self._api.list_sessions(token, params["patient_id"])
-        current = next((item for item in sessions if str(item.get("id")) == params["session_id"]), None)
-
-        if current is None:
-            return ActionResult("not_found", msg.RECORD_GONE)
-
-        info = {"name": params["patient_name"], "date": date_br(params["date"]), "label": label}
-
-        if current.get("payment_status") == target:
-            return ActionResult("no_change", msg.PAYMENT_NO_CHANGE.format(**info))
-
-        updated = self._api.toggle_session_payment(token, params["patient_id"], params["session_id"])
-
-        if updated.get("payment_status") not in (None, target):
-            actual = PAYMENT_LABELS.get(updated.get("payment_status"), str(updated.get("payment_status")))
-            return ActionResult("rejected", f"A sessão ficou {actual}, e não {label}. Confira no aplicativo.")
-
-        return ActionResult("executed", msg.PAYMENT_DONE.format(**info))
+            # A read may reconcile a lost response. It never repeats the write.
+            return self.recover(proposal_token, access_token)
 
     def _find_by_cpf(self, token: str, cpf: str) -> dict | None:
         for active in (True, False):
@@ -509,7 +475,7 @@ class ActionService:
         summary = f"Alterar dados de {name}: {'; '.join(parts)}."
         params = {"patient_id": str(patient.get("id")), "patient_name": name, "body": clean}
 
-        return self._proposal("update_patient", user_id, params, summary)
+        return self._proposal("update_patient", user_id, params, summary, self._preconditions(patient))
 
     def _propose_deactivate_patient(self, arguments: dict, token: str, user_id: str) -> ProposalOutcome:
         patient, error = self._patient(arguments, token)
@@ -524,7 +490,7 @@ class ActionService:
 
         params = {"patient_id": str(patient.get("id")), "patient_name": name}
 
-        return self._proposal("deactivate_patient", user_id, params, msg.PATIENT_DEACTIVATE_SUMMARY.format(name=name))
+        return self._proposal("deactivate_patient", user_id, params, msg.PATIENT_DEACTIVATE_SUMMARY.format(name=name), self._preconditions(patient))
 
     def _propose_reactivate_patient(self, arguments: dict, token: str, user_id: str) -> ProposalOutcome:
         patient, error = self._patient(arguments, token)
@@ -539,24 +505,4 @@ class ActionService:
 
         params = {"patient_id": str(patient.get("id")), "patient_name": name}
 
-        return self._proposal("reactivate_patient", user_id, params, msg.PATIENT_REACTIVATE_SUMMARY.format(name=name))
-
-    def _exec_create_patient(self, params: dict, token: str) -> ActionResult:
-        self._api.create_patient(token, params["body"])
-
-        return ActionResult("executed", msg.PATIENT_CREATED.format(name=params["patient_name"]))
-
-    def _exec_update_patient(self, params: dict, token: str) -> ActionResult:
-        self._api.update_patient(token, params["patient_id"], params["body"])
-
-        return ActionResult("executed", msg.PATIENT_UPDATED.format(name=params["patient_name"]))
-
-    def _exec_deactivate_patient(self, params: dict, token: str) -> ActionResult:
-        self._api.deactivate_patient(token, params["patient_id"])
-
-        return ActionResult("executed", msg.PATIENT_DEACTIVATED.format(name=params["patient_name"]))
-
-    def _exec_reactivate_patient(self, params: dict, token: str) -> ActionResult:
-        self._api.reactivate_patient(token, params["patient_id"])
-
-        return ActionResult("executed", msg.PATIENT_REACTIVATED.format(name=params["patient_name"]))
+        return self._proposal("reactivate_patient", user_id, params, msg.PATIENT_REACTIVATE_SUMMARY.format(name=name), self._preconditions(patient))
