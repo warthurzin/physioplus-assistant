@@ -1,0 +1,124 @@
+{
+  "documents": [
+    {
+      "id": "visao-geral",
+      "title": "Visão geral do PhysioPlus",
+      "category": "geral",
+      "file": "visao-geral.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "autenticacao-conta",
+      "title": "Acesso e conta",
+      "category": "conta",
+      "file": "autenticacao-conta.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "perfil-profissional",
+      "title": "Perfil profissional",
+      "category": "conta",
+      "file": "perfil-profissional.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "pacientes-cadastro",
+      "title": "Cadastro de pacientes",
+      "category": "pacientes",
+      "file": "pacientes-cadastro.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "pacientes-consulta-edicao",
+      "title": "Consulta e edição de pacientes",
+      "category": "pacientes",
+      "file": "pacientes-consulta-edicao.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "agenda",
+      "title": "Agenda",
+      "category": "agenda",
+      "file": "agenda.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "agendamentos",
+      "title": "Agendamentos",
+      "category": "agenda",
+      "file": "agendamentos.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "agendamentos-confirmacao",
+      "title": "Confirmação e reabertura de agendamentos",
+      "category": "agenda",
+      "file": "agendamentos-confirmacao.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "sessoes-avulsas",
+      "title": "Sessões avulsas",
+      "category": "sessoes",
+      "file": "sessoes-avulsas.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "pagamentos-sessoes",
+      "title": "Pagamento de sessões",
+      "category": "financeiro",
+      "file": "pagamentos-sessoes.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "financeiro",
+      "title": "Financeiro",
+      "category": "financeiro",
+      "file": "financeiro.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "anotacoes-clinicas",
+      "title": "Anotações clínicas",
+      "category": "clinico",
+      "file": "anotacoes-clinicas.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "horarios-padrao",
+      "title": "Horários padrão",
+      "category": "agenda",
+      "file": "horarios-padrao.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "assistente-physio",
+      "title": "Assistente Physio+",
+      "category": "assistente",
+      "file": "assistente-physio.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    },
+    {
+      "id": "erros-comuns",
+      "title": "Erros comuns e seus significados",
+      "category": "ajuda",
+      "file": "erros-comuns.md",
+      "version": "1.0",
+      "source": "Documentação interna PhysioPlus"
+    }
+  ]
+}

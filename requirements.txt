@@ -1,0 +1,17 @@
+--find-links https://download.pytorch.org/whl/cpu/torch/
+torch==2.15.0+cpu
+
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+pydantic-settings>=2.2
+sentence-transformers>=2.7
+faiss-cpu>=1.8
+numpy>=1.26
+groq>=0.11
+langgraph>=0.2
+pytest>=8.0
+httpx>=0.27
+tzdata>=2024.1
+cryptography>=42.0
+reportlab>=4.2,<6

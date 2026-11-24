@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "python -m scripts.build_index && test -s index/faiss.index && test -s index/chunks.json && test -s index/meta.json && test -d model-cache",
+  "functions": {
+    "app/main.py": {
+      "includeFiles": "{index/**,model-cache/**,knowledge/**}",
+      "excludeFiles": "{docs/**,evaluations/**,scripts/**}"
+    }
+  }
+}
