@@ -3,6 +3,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
+from app.actions.service import ActionService
 from app.core.config import Settings
 from app.graph.builder import build_assistant_graph
 from app.graph.nodes import EMPTY_USAGE, GraphNodes
@@ -13,11 +14,10 @@ from app.services.data_planner import DataPlanner
 from app.services.query_analyzer import QueryAnalyzer
 from app.services.retrieval_service import RetrievalService
 from app.tools.service import DataToolService
-from app.actions.service import ActionService
 
 logger = logging.getLogger("physioplus.chat")
 
-CITATION_PATTERN = re.compile(r"\[Fonte\s+(\d+)\]")
+CITATION_PATTERN = re.compile(r"\[Fonte\s+(\d+)\]", re.IGNORECASE)
 HISTORY_MESSAGE_MAX_CHARS = 500
 
 
@@ -42,6 +42,8 @@ class ChatResult:
     context: str = ""
     data_source: str | None = None
     proposal: dict | None = None
+    report: dict | None = None
+    title: str | None = None
 
 
 def format_history(history: list[dict], max_turns: int) -> str:
@@ -149,7 +151,7 @@ class ChatService:
         )
 
         return ChatResult(
-            answer=answer,
+            answer=re.sub(r"[ \t]+(?=[.,;:!?])", "", re.sub(r"[ \t]+\n", "\n", CITATION_PATTERN.sub("", answer))).strip(),
             intent=state.get("intent", ""),
             grounded=path == "documentacao_resposta" and bool(sources),
             abstained=abstained,
@@ -157,6 +159,8 @@ class ChatService:
             context=state.get("context", ""),
             data_source=state.get("plan_tool") if path == "dados_resposta" else None,
             proposal=state.get("proposal"),
+            report=state.get("tool_data", {}).get("report") if state.get("plan_tool") == "get_financial_summary" and state.get("tool_status") == "ok" else None,
+            title=(f"Agendamento de {state['plan_args']['patient_name']}" if state.get("plan_tool") == "create_appointment" and state.get("plan_args", {}).get("patient_name") else None),
             debug={
                 "path": path,
                 "search_query": state.get("standalone_question", ""),

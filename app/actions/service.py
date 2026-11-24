@@ -6,9 +6,12 @@ from datetime import date
 from typing import Callable
 
 from app.actions import patient_rules
+from app.actions.command_signer import (
+    AssistantCommandSigner,
+    AssistantCommandSigningError,
+)
 from app.actions.identity import authenticated_user_id
-from app.actions.command_signer import AssistantCommandSigner, AssistantCommandSigningError
-from app.actions.schemas import PATIENT_ACTIONS
+from app.actions.schemas import PATIENT_ACTIONS, CreateAppointmentArgs
 from app.actions.signer import ProposalError, ProposalSigner
 from app.core.exceptions import (
     UpstreamAuthError,
@@ -158,15 +161,24 @@ class ActionService:
         return outcome
 
     def _propose_create(self, arguments: dict, token: str, user_id: str) -> ProposalOutcome:
+        if not arguments.get("patient_name"):
+            return ProposalOutcome("missing", "Qual é o nome cadastrado do paciente para agendar?")
         patient, error = self._patient(arguments, token)
 
         if error:
-            return error
+            return ProposalOutcome(error.status, error.text + " Informe o nome cadastrado completo para agendar.")
 
         name = patient.get("full_name")
 
         if not patient.get("is_active", True):
             return ProposalOutcome("invalid_state", msg.PATIENT_INACTIVE.format(name=name, verb="agendar"))
+
+        if not any(arguments.get(key) for key in ("date", "relative", "weekday")) or not arguments.get("start_time"):
+            return ProposalOutcome("missing", f"Paciente identificado: {name}. Qual dia e horário deseja para agendar?")
+        try:
+            arguments = CreateAppointmentArgs.model_validate(arguments).model_dump()
+        except ValueError:
+            return ProposalOutcome("invalid", "Confira o dia e horário para agendar e informe novamente.")
 
         day = self._day(arguments)
         start = arguments["start_time"]
@@ -194,6 +206,12 @@ class ActionService:
             f"Criar agendamento: {name}, {weekday_pt(day)} {date_br(day.isoformat())}, "
             f"das {start} às {end}{', atendimento domiciliar' if home else ''}."
         )
+
+        if day.weekday() < 5:
+            schedule = self._api.schedule_day(token, day.isoformat())
+            free = [item.get("slot") or {} for item in schedule if item.get("status") == "free"]
+            if not any(time_hm(slot.get("start_time")) <= start and time_hm(slot.get("end_time")) >= end for slot in free):
+                summary += " Horário fora dos horários padrão livres; confira antes de confirmar."
 
         if day.weekday() >= 5:
             summary += msg.WEEKEND_WARNING

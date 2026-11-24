@@ -1,4 +1,5 @@
 from typing import Annotated, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -14,6 +15,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: UserMessage
     history: list[ChatMessage] = Field(default_factory=list, max_length=20)
+    conversation_id: UUID | None = None
 
 
 class ChatSource(BaseModel):
@@ -54,6 +56,7 @@ class Proposal(BaseModel):
 
 class ConfirmRequest(BaseModel):
     proposal: Annotated[str, StringConstraints(strip_whitespace=True, min_length=10, max_length=40000)]
+    conversation_id: UUID | None = None
 
 
 class ConfirmResponse(BaseModel):
@@ -71,3 +74,6 @@ class ChatResponse(BaseModel):
     data_source: str | None = None
     proposal: Proposal | None = None
     debug: ChatDebug | None = None
+    conversation_id: UUID | None = None
+    report: dict | None = None
+    report_message_index: int | None = None

@@ -68,6 +68,18 @@ class CreateAppointmentArgs(RequiredDayFields):
         return self
 
 
+class AppointmentDraft(DayFields):
+    """Only planning may accept missing slots; execution still uses CreateAppointmentArgs."""
+
+    patient_name: str | None = Field(default=None, min_length=2, max_length=100)
+    start_time: str | None = None
+    end_time: str | None = None
+    duration_minutes: int | None = Field(default=None, ge=15, le=480)
+    is_home_visit: bool = False
+
+    _time = field_validator("start_time", "end_time")(normalize_time)
+
+
 class AppointmentRefArgs(RequiredDayFields):
     patient_name: str = Field(min_length=2, max_length=100)
     start_time: str | None = None

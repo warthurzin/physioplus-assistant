@@ -1,23 +1,23 @@
+import json
 import logging
 from types import ModuleType
 from typing import Literal
 
+from langchain_core.runnables import RunnableConfig
+
+from app.actions.schemas import ACTION_MODELS
+from app.actions.service import ActionService
 from app.core.config import Settings
 from app.core.exceptions import LLMEmptyResponseError, LLMError
 from app.graph.state import AssistantState
-import json
-
-from langchain_core.runnables import RunnableConfig
-
 from app.llm.base import LLMClient, LLMResponse
+from app.prompts import actions as action_prompts
 from app.prompts import data as data_prompts
 from app.services.answer_verifier import REJECTED, AnswerVerifier
-from app.actions.schemas import ACTION_MODELS
-from app.actions.service import ActionService
-from app.prompts import actions as action_prompts
 from app.services.data_planner import INVALID, INVALID_ACTION, UNSUPPORTED, DataPlanner
 from app.services.query_analyzer import QueryAnalyzer
 from app.services.retrieval_service import RetrievalService
+from app.services.text_utils import normalize_text
 from app.tools.guard import unsupported_number
 from app.tools.outcome import OK
 from app.tools.service import DataToolService
@@ -246,6 +246,19 @@ class GraphNodes:
         data = state["tool_data"]
         fallback = state["tool_text"]
         usage = state.get("usage")
+
+        if state.get("plan_tool") == "get_financial_summary":
+            question = normalize_text(state["message"])
+            groups = ("pendentes",) if any(word in question for word in ("pendente", "em aberto", "devendo")) else (
+                ("pagas",) if any(word in question for word in ("recebi", "recebido", "pagou")) else ("pendentes", "pagas")
+            )
+            lines = [fallback, "Período pela data da sessão; a API não informa a data de recebimento."]
+            for group in groups:
+                for item in data[group]:
+                    lines.append(f"- {item['paciente'] or 'Paciente não informado'}: {item['data']}, {item['inicio']}, {item['valor']} ({'pendente' if group == 'pendentes' else 'pago'}).")
+                if data[f"{group}_omitidas"]:
+                    lines.append(f"Mais {data[f'{group}_omitidas']} sessões {group} no PDF completo.")
+            return {"answer": "\n".join(lines), "abstained": False, "path": "dados_resposta", "numeric_guard": "deterministico"}
 
         messages = data_prompts.build_compose_messages(
             state["message"], state.get("history_text", ""), data

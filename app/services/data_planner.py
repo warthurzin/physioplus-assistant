@@ -3,10 +3,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from app.actions.schemas import ACTION_MODELS, AppointmentDraft
 from app.core.exceptions import LLMError
 from app.llm.base import LLMClient, LLMResponse, extract_json
-from app.actions.schemas import ACTION_MODELS
 from app.prompts.data import build_planner_messages
+from app.services.operational_intent import scheduling_request
+from app.services.text_utils import normalize_text
 from app.tools.schemas import ARGUMENT_MODELS
 
 logger = logging.getLogger("physioplus.planner")
@@ -41,6 +43,8 @@ class DataPlanner:
         return f"{now.strftime('%d/%m/%Y')} ({WEEKDAYS[now.weekday()]})"
 
     def plan(self, message: str, history_text: str = "") -> PlanResult:
+        if normalize_text(message).strip(".! ") in {"sim", "confirmo", "pode fazer", "pode confirmar", "confirmar", "ok"}:
+            return PlanResult(INVALID)
         messages = build_planner_messages(message, history_text, self.today_text(), self._now().year)
         response = None
 
@@ -58,9 +62,11 @@ class DataPlanner:
                 return PlanResult(UNSUPPORTED, {}, response)
 
             if tool == "clarify":
+                if scheduling_request(message):
+                    return PlanResult("create_appointment", AppointmentDraft().model_dump(), response)
                 return PlanResult(INVALID, {}, response)
 
-            model = ALL_MODELS.get(tool)
+            model = AppointmentDraft if tool == "create_appointment" else ALL_MODELS.get(tool)
 
             if model is None:
                 raise ValueError(f"ferramenta desconhecida: {tool!r}")

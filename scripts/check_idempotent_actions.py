@@ -51,6 +51,8 @@ class IntegrationChecks(unittest.TestCase):
             return httpx.Response(200, json={"data": [] if query.isdigit() else [self.patient]})
         if path.endswith("/appointments") and request.method == "GET":
             return httpx.Response(200, json={"data": [self.appointment]})
+        if path.endswith("/schedule/day") and request.method == "GET":
+            return httpx.Response(200, json={"data": []})
         if "/assistant/context/" in path:
             return httpx.Response(200, json={"data": {"patient": self.patient, "appointments": [self.appointment], "sessions": [self.session]}})
         if path.endswith("/assistant/executions") and request.method == "POST":

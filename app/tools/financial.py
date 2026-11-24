@@ -1,4 +1,5 @@
 from app.integrations.physio_api import PhysioApiClient
+from app.services.report_metadata import financial_report_metadata
 from app.tools.formatting import MONTHS, date_br, money, time_hm
 from app.tools.outcome import OK, ToolOutcome
 
@@ -28,6 +29,7 @@ def get_financial_summary(
     paid = summary.get("paid_sessions") or []
 
     data = {
+        "report": financial_report_metadata(summary, month, year),
         "mes": MONTHS[month - 1],
         "ano": year,
         "recebido": money(summary.get("total_received")),

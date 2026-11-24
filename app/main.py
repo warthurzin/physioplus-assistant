@@ -1,20 +1,19 @@
 import logging
 from contextlib import asynccontextmanager
-
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from cryptography.exceptions import UnsupportedAlgorithm
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.router import build_router
-from app.core.config import get_settings
+from app.actions.command_signer import AssistantCommandSigner
 from app.actions.service import ActionService
 from app.actions.signer import ProposalSigner
-from app.actions.command_signer import AssistantCommandSigner
-from cryptography.hazmat.primitives.serialization import load_pem_private_key
-from cryptography.exceptions import UnsupportedAlgorithm
+from app.api.router import build_router
+from app.core.config import get_settings
 from app.core.exceptions import (
     ActionsDisabledError,
     AssistantError,
@@ -78,7 +77,8 @@ def create_app(
                 logger.warning("%s", error)
 
         app.state.retrieval_service = service
-        today_fn = lambda: datetime.now(ZoneInfo(settings.timezone)).date()
+        def today_fn():
+            return datetime.now(ZoneInfo(settings.timezone)).date()
         tools = data_service
         actions = None
         api = PhysioApiClient(
@@ -131,6 +131,7 @@ def create_app(
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Report-Updated"],
     )
 
     def error_response(status_code: int):
@@ -157,6 +158,13 @@ def create_app(
     app.add_exception_handler(UpstreamUnavailableError, error_response(503))
 
     app.include_router(build_router(settings))
+
+    @app.middleware("http")
+    async def private_chat(request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/chat"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
 
     return app
 

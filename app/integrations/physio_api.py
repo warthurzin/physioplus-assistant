@@ -181,6 +181,24 @@ class PhysioApiClient:
 
         return data if isinstance(data, list) else []
 
+    def list_conversations(self, token: str):
+        return self._get(token, "assistant/conversations")
+
+    def create_conversation(self, token: str):
+        return self._request("POST", token, "assistant/conversations", body={})
+
+    def get_conversation(self, token: str, conversation_id: str):
+        return self._get(token, f"assistant/conversations/{conversation_id}")
+
+    def delete_conversation(self, token: str, conversation_id: str):
+        return self._request("DELETE", token, f"assistant/conversations/{conversation_id}")
+
+    def append_conversation(self, token: str, conversation_id: str, message: str, answer: str, title: str | None, report: dict | None = None):
+        return self._request("POST", token, f"assistant/conversations/{conversation_id}/turns", body={
+            "message": message, "answer": answer, **({"title": title[:120]} if title else {}),
+            **({"report": report} if report else {}),
+        })
+
     def list_sessions(self, token: str, patient_id: str) -> list:
         data = self._get(token, f"patients/{patient_id}/sessions")
 

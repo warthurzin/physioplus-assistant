@@ -18,17 +18,17 @@ class Lookup:
 
 def find_patient(api: PhysioApiClient, token: str, name: str) -> Lookup:
     matches: list[dict] = []
+    target = normalize_text(name)
 
     for active in (True, False):
-        matches = api.list_patients(token, name, active)
-
-        if matches:
-            break
+        for item in api.list_patients(token, name, active):
+            candidate = normalize_text(str(item.get("full_name", "")))
+            if target and target in candidate and not any(row.get("id") == item.get("id") for row in matches):
+                matches.append(item)
 
     if not matches:
         return Lookup(NONE)
 
-    target = normalize_text(name)
     exact = [item for item in matches if normalize_text(str(item.get("full_name", ""))) == target]
     chosen = exact if len(exact) == 1 else matches
 

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.core.exceptions import LLMError
 from app.llm.base import LLMClient, LLMResponse, extract_json
+from app.services.operational_intent import operational_intent
 
 logger = logging.getLogger("physioplus.analyzer")
 
@@ -41,6 +42,8 @@ class QueryAnalyzer:
         )
 
     def analyze(self, message: str, history_text: str = "") -> AnalysisResult:
+        if operational_intent(message, history_text):
+            return AnalysisResult(QueryAnalysis(intent="DADOS_OU_ACAO", standalone_question=message), None)
         if not self._enabled:
             return AnalysisResult(self._fallback(message, False), None)
 
